@@ -19,11 +19,18 @@ def _attrs(element: ET.Element) -> dict[str, str]:
 
 def _definition(element: ET.Element, kind: str, field_tag: str) -> Definition:
     attributes = _attrs(element)
+    properties = {
+        _attrs(child).get("NAME", ""): _attrs(child).get("VALUE", "")
+        for child in element if _tag(child) == "TABLEATTRIBUTE" and _attrs(child).get("NAME")
+    }
     fields = tuple(
         Field(name=_attrs(child).get("NAME", ""), attributes=_attrs(child))
         for child in element if _tag(child) == field_tag
     )
-    return Definition(kind=kind, name=attributes.get("NAME", ""), attributes=attributes, fields=fields)
+    return Definition(
+        kind=kind, name=attributes.get("NAME", ""), attributes=attributes,
+        fields=fields, properties=properties,
+    )
 
 
 def parse_file(path: str | Path) -> PowerCenterDocument:
@@ -70,6 +77,7 @@ def _parse_mapping(element: ET.Element) -> Mapping:
     )
     instances: list[Instance] = []
     connections: list[Connection] = []
+    variables: dict[str, str] = {}
     for child in element:
         tag = _tag(child)
         item = _attrs(child)
@@ -89,7 +97,11 @@ def _parse_mapping(element: ET.Element) -> Mapping:
                 to_field=item.get("TOFIELD", ""),
                 attributes=item,
             ))
+        elif tag in {"VARIABLE", "MAPPINGVARIABLE"}:
+            if item.get("NAME"):
+                variables[item["NAME"]] = item.get("VALUE", item.get("DEFAULTVALUE", ""))
     return Mapping(
         name=attributes.get("NAME", ""), attributes=attributes,
         transformations=transformations, instances=tuple(instances), connections=tuple(connections),
+        variables=variables,
     )

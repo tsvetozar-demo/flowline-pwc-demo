@@ -22,6 +22,7 @@ class Definition:
     name: str
     attributes: dict[str, str] = field(default_factory=dict)
     fields: tuple[Field, ...] = ()
+    properties: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,13 @@ class Mapping:
     transformations: tuple[Definition, ...] = ()
     instances: tuple[Instance, ...] = ()
     connections: tuple[Connection, ...] = ()
+    variables: dict[str, str] = field(default_factory=dict)
+
+    def graph(self, document: PowerCenterDocument | None = None) -> dict[str, object]:
+        """Return the mapping as one resolved, graph-shaped configuration."""
+        from .graph import build_mapping_graph
+
+        return build_mapping_graph(self, document)
 
     def find_instance(self, name: str) -> Instance | None:
         """Look up a mapping instance by its mapping-local name."""
@@ -101,3 +109,9 @@ class PowerCenterDocument:
 
     def find_mapping(self, name: str) -> Mapping | None:
         return next((mapping for mapping in self.mappings if mapping.name == name), None)
+
+    def project_definition(self) -> dict[str, object]:
+        """Return all mappings as one resolved transformation configuration."""
+        from .graph import build_project_definition
+
+        return build_project_definition(self)
