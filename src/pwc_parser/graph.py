@@ -81,9 +81,15 @@ def build_mapping_graph(
 
 def build_project_definition(document: PowerCenterDocument) -> dict[str, object]:
     """Build the project-level configuration containing every mapping graph."""
+    from .workflow import build_workflow_definition
+
     return {
         "mappings": {
             mapping.name: build_mapping_graph(mapping, document)
             for mapping in document.mappings
-        }
+        },
+        "workflows": {
+            workflow.name: build_workflow_definition(workflow, document)
+            for workflow in document.workflows
+        },
     }

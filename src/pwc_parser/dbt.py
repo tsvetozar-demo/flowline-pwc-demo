@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
-from .model import Definition, Instance, Mapping, PowerCenterDocument
+from .model import Definition, Instance, Mapping, PowerCenterDocument, Workflow
+from .workflow import workflow_execution_plan
 
 
 def translate_expression(expression: str | None) -> str:
@@ -164,4 +165,30 @@ def generate_dbt_models(
             path = destination / f"{_sql_name(target.definition_name)}.sql"
             path.write_text(generator.render_target(target), encoding="utf-8")
             written.append(path)
+    return tuple(written)
+
+
+def generate_workflow_models(
+    document: PowerCenterDocument,
+    workflow: Workflow,
+    output_dir: str | Path,
+    source_name: str = "raw",
+) -> tuple[Path, ...]:
+    """Write models for sessions in workflow execution order."""
+    destination = Path(output_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    generated_mappings: set[str] = set()
+    for session in workflow_execution_plan(workflow, document):
+        if session.mapping_name in generated_mappings:
+            continue
+        mapping = document.find_mapping(session.mapping_name)
+        if mapping is None:
+            raise ValueError(f"Session {session.name!r} references unknown mapping {session.mapping_name!r}")
+        for target in DbtModelGenerator(mapping, document, source_name).target_instances():
+            generator = DbtModelGenerator(mapping, document, source_name)
+            path = destination / f"{_sql_name(target.definition_name)}.sql"
+            path.write_text(generator.render_target(target), encoding="utf-8")
+            written.append(path)
+        generated_mappings.add(session.mapping_name)
     return tuple(written)

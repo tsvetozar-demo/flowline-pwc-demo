@@ -89,6 +89,42 @@ class Mapping:
 
 
 @dataclass(frozen=True)
+class Session:
+    name: str
+    mapping_name: str
+    reusable: bool = False
+    attributes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class WorkflowTask:
+    name: str
+    task_name: str
+    task_type: str
+    attributes: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def is_session(self) -> bool:
+        return self.task_type.casefold() == "session"
+
+
+@dataclass(frozen=True)
+class WorkflowLink:
+    from_task: str
+    to_task: str
+    condition: str = ""
+    attributes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Workflow:
+    name: str
+    attributes: dict[str, str] = field(default_factory=dict)
+    tasks: tuple[WorkflowTask, ...] = ()
+    links: tuple[WorkflowLink, ...] = ()
+
+
+@dataclass(frozen=True)
 class PowerCenterDocument:
     attributes: dict[str, str] = field(default_factory=dict)
     repositories: tuple[Definition, ...] = ()
@@ -96,6 +132,8 @@ class PowerCenterDocument:
     sources: tuple[Definition, ...] = ()
     targets: tuple[Definition, ...] = ()
     mappings: tuple[Mapping, ...] = ()
+    sessions: tuple[Session, ...] = ()
+    workflows: tuple[Workflow, ...] = ()
 
     def iter_mappings(self) -> Iterator[Mapping]:
         return iter(self.mappings)
@@ -109,6 +147,12 @@ class PowerCenterDocument:
 
     def find_mapping(self, name: str) -> Mapping | None:
         return next((mapping for mapping in self.mappings if mapping.name == name), None)
+
+    def find_session(self, name: str) -> Session | None:
+        return next((session for session in self.sessions if session.name == name), None)
+
+    def find_workflow(self, name: str) -> Workflow | None:
+        return next((workflow for workflow in self.workflows if workflow.name == name), None)
 
     def project_definition(self) -> dict[str, object]:
         """Return all mappings as one resolved transformation configuration."""

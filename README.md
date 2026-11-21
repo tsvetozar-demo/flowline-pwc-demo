@@ -35,3 +35,51 @@ Each mapping contains `transformations`, `instances`, `connectors`, `sources`,
 their type, ports, XML attributes, and table properties. Source and target
 definitions are resolved using the corresponding mapping instance name;
 connectors retain both endpoint instances and fields.
+
+## dbt SQL generation
+
+Generates one dbt model file per mapping target. It uses connector
+lineage to build target columns, creates CTEs for transformation instances,
+and represents source tables with dbt `source()` references:
+
+```python
+from pwc_parser import generate_dbt_models, parse_file
+
+document = parse_file("FLOWLINE_DEMO_JAFFLESHOP.xml")
+paths = generate_dbt_models(document, "models")
+```
+
+Or generate one target in memory:
+
+```python
+from pwc_parser import generate_model_sql, parse_file
+
+document = parse_file("FLOWLINE_DEMO_JAFFLESHOP.xml")
+mapping = document.find_mapping("m_FL_JS_STAGING_FULL")
+sql = generate_model_sql(mapping, document, "STG_CUSTOMERS")
+```
+
+The generator currently handles source/pass-through lineage, expression
+ports, common date expressions, and join conditions. More complex Informatica
+transformations such as routers and aggregators require dialect-specific SQL
+rules and are intended to be extended in the generator.
+
+## Command-line tool
+
+The manual CLI is available at `cmd/pwc_to_dbt.py`:
+
+```bash
+source .venv/bin/activate
+python cmd/pwc_to_dbt.py inventory FLOWLINE_DEMO_JAFFLESHOP.xml
+python cmd/pwc_to_dbt.py graph FLOWLINE_DEMO_JAFFLESHOP.xml --mapping m_FL_JS_STAGING_FULL
+python cmd/pwc_to_dbt.py generate FLOWLINE_DEMO_JAFFLESHOP.xml --output models/staging
+python cmd/pwc_to_dbt.py model FLOWLINE_DEMO_JAFFLESHOP.xml m_FL_JS_STAGING_FULL STG_CUSTOMERS
+python cmd/pwc_to_dbt.py workflow FLOWLINE_DEMO_JAFFLESHOP.xml wf_FL_JAFFLESHOP_DEMO
+python cmd/pwc_to_dbt.py workflow FLOWLINE_DEMO_JAFFLESHOP.xml wf_FL_JAFFLESHOP_DEMO --output models/staging
+```
+
+The `generate` command writes one SQL file per mapping target. The `model`
+command prints one generated model to the terminal, which is useful for
+manually inspecting lineage and expressions. The `workflow` command resolves
+session task instances and prints their mapping execution order; with
+`--output`, it generates models in that workflow order.

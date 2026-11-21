@@ -1,4 +1,4 @@
-from pwc_parser import build_project_definition, parse_string
+from pwc_parser import build_project_definition, generate_dbt_models, generate_model_sql, parse_string
 
 
 XML = """
@@ -41,3 +41,22 @@ def test_project_definition_resolves_graph_nodes_and_edges():
 def test_mapping_graph_can_be_built_without_repository_definitions():
     mapping = parse_string("<ROOT><FOLDER><MAPPING NAME='m'><TRANSFORMATION NAME='T' TYPE='Expression'/></MAPPING></FOLDER></ROOT>").mappings[0]
     assert mapping.graph()["transformations"]["T"]["type"] == "Expression"
+
+
+def test_mapping_generates_dbt_sql_from_connector_lineage():
+    document = parse_string(XML)
+    sql = generate_model_sql(document.mappings[0], document, "CUSTOMERS_1")
+
+    assert "{{ source('raw', 'RAW_CUSTOMERS') }}" in sql
+    assert "    ID AS CUSTOMER_ID" not in sql
+    assert "i0.ID AS CUSTOMER_ID" in sql
+
+
+def test_mapping_generation_writes_dbt_model_files(tmp_path):
+    document = parse_string(XML)
+
+    paths = generate_dbt_models(document, tmp_path)
+
+    assert [path.name for path in paths] == ["customers.sql"]
+    assert "SELECT" in paths[0].read_text(encoding="utf-8")
+    assert "{{ source('raw', 'RAW_CUSTOMERS') }}" in paths[0].read_text(encoding="utf-8")

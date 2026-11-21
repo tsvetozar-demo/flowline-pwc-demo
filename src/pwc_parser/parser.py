@@ -5,7 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
-from .model import Connection, Definition, Field, Instance, Mapping, PowerCenterDocument
+from .model import (
+    Connection, Definition, Field, Instance, Mapping, PowerCenterDocument,
+    Session, Workflow, WorkflowLink, WorkflowTask,
+)
 
 
 def _tag(element: ET.Element) -> str:
@@ -49,6 +52,8 @@ def _parse_root(root: ET.Element) -> PowerCenterDocument:
     sources: list[Definition] = []
     targets: list[Definition] = []
     mappings: list[Mapping] = []
+    sessions: list[Session] = []
+    workflows: list[Workflow] = []
 
     for repository in (node for node in root.iter() if _tag(node) == "REPOSITORY"):
         repositories.append(_definition(repository, "REPOSITORY", ""))
@@ -62,10 +67,56 @@ def _parse_root(root: ET.Element) -> PowerCenterDocument:
                 targets.append(_definition(child, "TARGET", "TARGETFIELD"))
             elif tag == "MAPPING":
                 mappings.append(_parse_mapping(child))
+            elif tag == "WORKFLOW":
+                workflows.append(_parse_workflow(child))
+        # Reusable sessions live beside mappings; non-reusable sessions can be
+        # nested inside a workflow. Both are session definitions.
+        for node in folder.iter():
+            if _tag(node) == "SESSION":
+                sessions.append(_parse_session(node))
 
     return PowerCenterDocument(
         attributes=_attrs(root), repositories=tuple(repositories), folders=tuple(folders),
         sources=tuple(sources), targets=tuple(targets), mappings=tuple(mappings),
+        sessions=tuple(sessions), workflows=tuple(workflows),
+    )
+
+
+def _parse_session(element: ET.Element) -> Session:
+    attributes = _attrs(element)
+    return Session(
+        name=attributes.get("NAME", ""),
+        mapping_name=attributes.get("MAPPINGNAME", ""),
+        reusable=attributes.get("REUSABLE", "").casefold() == "yes",
+        attributes=attributes,
+    )
+
+
+def _parse_workflow(element: ET.Element) -> Workflow:
+    tasks: list[WorkflowTask] = []
+    links: list[WorkflowLink] = []
+    for child in element:
+        tag = _tag(child)
+        attributes = _attrs(child)
+        if tag == "TASKINSTANCE":
+            tasks.append(WorkflowTask(
+                name=attributes.get("NAME", ""),
+                task_name=attributes.get("TASKNAME", ""),
+                task_type=attributes.get("TASKTYPE", ""),
+                attributes=attributes,
+            ))
+        elif tag == "WORKFLOWLINK":
+            links.append(WorkflowLink(
+                from_task=attributes.get("FROMTASK", ""),
+                to_task=attributes.get("TOTASK", ""),
+                condition=attributes.get("CONDITION", ""),
+                attributes=attributes,
+            ))
+    return Workflow(
+        name=_attrs(element).get("NAME", ""),
+        attributes=_attrs(element),
+        tasks=tuple(tasks),
+        links=tuple(links),
     )
 
 

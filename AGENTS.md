@@ -21,3 +21,12 @@ The mapping mirrors the dbt jaffle shop demo project, which is public. You can u
 
     These nodes define the transformation flow from the original data to produce the final database result.
 
+### Layer 1, Step 3: Execute mappings.
+    The definitions in each <MAPPING> must be converted to SQL files.
+    This means one function will locate all MAPPING nodes and for each will execute it based on the configuration nodes inside it.
+    This needs to result in dbt model SQL files.
+
+
+## Layer 2, Orchestration: parse the WORKFLOW functionality and process it
+
+### Layer 2, Step 1: Process only TASKINSTANCE nodes that lead to executing SESSION and MAPPING

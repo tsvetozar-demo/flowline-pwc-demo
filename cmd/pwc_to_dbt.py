@@ -16,7 +16,9 @@ from pwc_parser import (  # noqa: E402
     build_project_definition,
     generate_dbt_models,
     generate_model_sql,
+    generate_workflow_models,
     parse_file,
+    build_workflow_definition,
 )
 
 
@@ -70,6 +72,21 @@ def model(args: argparse.Namespace) -> int:
     return 0
 
 
+def workflow(args: argparse.Namespace) -> int:
+    document = _document(args.xml)
+    selected = document.find_workflow(args.workflow)
+    if selected is None:
+        raise ValueError(f"Unknown workflow: {args.workflow}")
+    definition = build_workflow_definition(selected, document)
+    print(f"[{definition['name']}]")
+    for item in definition["execution_plan"]:
+        print(f"{item['session']} -> {item['mapping']}")
+    if args.output:
+        paths = generate_workflow_models(document, selected, args.output, args.source_name)
+        print(f"Generated {len(paths)} model(s) in {args.output}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pwc_to_dbt", description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -85,7 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     generate_parser = subparsers.add_parser("generate", help="write dbt SQL model files")
     generate_parser.add_argument("xml", help="PowerCenter XML export")
-    generate_parser.add_argument("-o", "--output", default="generated_models", help="output directory")
+    generate_parser.add_argument("-o", "--output", default="models/staging", help="output directory")
     generate_parser.add_argument("--source-name", default="raw", help="dbt source name")
     generate_parser.set_defaults(function=generate)
 
@@ -95,6 +112,13 @@ def build_parser() -> argparse.ArgumentParser:
     model_parser.add_argument("target", help="target instance name")
     model_parser.add_argument("--source-name", default="raw", help="dbt source name")
     model_parser.set_defaults(function=model)
+
+    workflow_parser = subparsers.add_parser("workflow", help="inspect or execute workflow sessions")
+    workflow_parser.add_argument("xml", help="PowerCenter XML export")
+    workflow_parser.add_argument("workflow", help="workflow name")
+    workflow_parser.add_argument("-o", "--output", default="models/staging", help="generate models in this directory")
+    workflow_parser.add_argument("--source-name", default="raw", help="dbt source name")
+    workflow_parser.set_defaults(function=workflow)
 
     return parser
 
