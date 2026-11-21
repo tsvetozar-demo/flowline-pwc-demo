@@ -1,4 +1,4 @@
-from pwc_parser import build_project_definition, generate_dbt_models, generate_model_sql, parse_string
+from pwc_parser import build_project_definition, generate_dbt_models, generate_model_sql, parse_file, parse_string
 
 
 XML = """
@@ -47,7 +47,7 @@ def test_mapping_generates_dbt_sql_from_connector_lineage():
     document = parse_string(XML)
     sql = generate_model_sql(document.mappings[0], document, "CUSTOMERS_1")
 
-    assert "{{ source('raw', 'RAW_CUSTOMERS') }}" in sql
+    assert "{{ ref('raw_customers') }}" in sql
     assert "    ID AS CUSTOMER_ID" not in sql
     assert "i0.ID AS CUSTOMER_ID" in sql
 
@@ -59,4 +59,28 @@ def test_mapping_generation_writes_dbt_model_files(tmp_path):
 
     assert [path.name for path in paths] == ["customers.sql"]
     assert "SELECT" in paths[0].read_text(encoding="utf-8")
-    assert "{{ source('raw', 'RAW_CUSTOMERS') }}" in paths[0].read_text(encoding="utf-8")
+    assert "{{ ref('raw_customers') }}" in paths[0].read_text(encoding="utf-8")
+
+
+def test_intermediate_definitions_use_dbt_ref():
+    document = parse_string(XML.replace("RAW_CUSTOMERS", "STG_CUSTOMERS"))
+    sql = generate_model_sql(document.mappings[0], document, "CUSTOMERS_1")
+
+    assert "{{ ref('stg_customers') }}" in sql
+
+
+def test_multiple_transformation_ctes_are_comma_separated():
+    document = parse_file("FLOWLINE_DEMO_JAFFLESHOP.xml")
+    mapping = document.find_mapping("m_FL_JS_STAGING_FULL")
+    sql = generate_model_sql(mapping, document, "STG_PRODUCTS")
+    assert ")\n\nexp_products AS (" not in sql
+    assert "),\n\nexp_products AS (" in sql
+    assert not sql.rstrip().endswith(";")
+
+
+def test_generation_does_not_require_intermediate_sources_file(tmp_path):
+    document = parse_file("FLOWLINE_DEMO_JAFFLESHOP.xml")
+
+    paths = generate_dbt_models(document, tmp_path)
+
+    assert not any(path.name == "sources.yml" for path in paths)

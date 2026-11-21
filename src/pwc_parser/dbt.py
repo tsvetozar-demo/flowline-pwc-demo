@@ -31,14 +31,20 @@ def _sql_name(name: str) -> str:
     return value or "model"
 
 
-def _source_name(instance: Instance) -> str:
-    return instance.definition_name
+def _relation_ref_name(instance: Instance) -> str:
+    """Resolve every PowerCenter input to a dbt-managed ``ref`` node."""
+    return _sql_name(instance.definition_name)
 
 
 class DbtModelGenerator:
     """Generate one dbt model per target instance in a mapping."""
 
-    def __init__(self, mapping: Mapping, document: PowerCenterDocument, source_name: str = "raw") -> None:
+    def __init__(
+        self,
+        mapping: Mapping,
+        document: PowerCenterDocument,
+        source_name: str = "raw",
+    ) -> None:
         self.mapping = mapping
         self.document = document
         self.source_name = source_name
@@ -60,9 +66,9 @@ class DbtModelGenerator:
             f"    {self._column_expression(connection.from_field, relation)} AS {connection.to_field}"
             for connection in incoming
         )
-        ctes = "\n\n".join(self._ctes.values())
+        ctes = ",\n\n".join(self._ctes.values())
         prefix = f"WITH\n{ctes}\n\n" if ctes else ""
-        return f"{prefix}SELECT\n{columns}\nFROM {relation};\n"
+        return f"{prefix}SELECT\n{columns}\nFROM {relation}\n"
 
     def _column_expression(self, field: str, relation: str) -> str:
         return f"{relation}.{field}"
@@ -87,7 +93,7 @@ class DbtModelGenerator:
         self._building.add(instance.name)
 
         if "source" in instance.instance_type.casefold():
-            relation = f"{{{{ source('{self.source_name}', '{_source_name(instance)}') }}}}"
+            relation = f"{{{{ ref('{_relation_ref_name(instance)}') }}}}"
             self._building.remove(instance.name)
             return relation
 

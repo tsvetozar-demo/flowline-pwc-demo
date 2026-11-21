@@ -40,7 +40,7 @@ connectors retain both endpoint instances and fields.
 
 Generates one dbt model file per mapping target. It uses connector
 lineage to build target columns, creates CTEs for transformation instances,
-and represents source tables with dbt `source()` references:
+and represents all table dependencies with dbt `ref()` references:
 
 ```python
 from pwc_parser import generate_dbt_models, parse_file
@@ -63,6 +63,11 @@ The generator currently handles source/pass-through lineage, expression
 ports, common date expressions, and join conditions. More complex Informatica
 transformations such as routers and aggregators require dialect-specific SQL
 rules and are intended to be extended in the generator.
+
+All generated inputs use dbt `ref()` dependencies. Relation names are derived
+from the XML definition names, normalized for dbt, so `RAW_CUSTOMERS` becomes
+`{{ ref('raw_customers') }}` and `STG_CUSTOMERS` becomes
+`{{ ref('stg_customers') }}`. The converter does not inspect local seed files.
 
 ## Command-line tool
 
