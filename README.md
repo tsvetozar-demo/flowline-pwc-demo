@@ -1,5 +1,10 @@
 # How to install
 
+Dockerfile creates an isolated environment for development and tests.
+It has python 3.14, pytest, dbt, duckdb (used as a playground to experient and test with dbt, seeds, data, etc).
+It's not intended as a production grade container only as an isolated safe environment for developers who won't need to make custom setups on their system.
+Just build the docker image, and run the container. Then attach to it and test. All dependencies are there ready set up.
+
 Build docker with:
 ```bash
 cd docker
@@ -22,6 +27,12 @@ docker start infinite-lambda-dbt
 docker attach infinite-lambda-dbt
 ```
 
+# Run tests
+
+```bash
+PYTHONPATH=src python -m pytest -q
+```
+
 # Command-line tool
 
 This is the tool that can be used to run different parts of the process and check results.
@@ -30,16 +41,28 @@ It can be used to produce the final generation of dbt models as well.
 The manual CLI is available at `cmd/pwc_to_dbt.py`:
 
 ```bash
+# only needed if you're working outside of the container in a venv (in container's isolated invironment everything is set up for the project only)
 source .venv/bin/activate
+
 python cmd/pwc_to_dbt.py inventory FLOWLINE_DEMO_JAFFLESHOP.xml
 python cmd/pwc_to_dbt.py graph FLOWLINE_DEMO_JAFFLESHOP.xml --mapping m_FL_JS_STAGING_FULL
 python cmd/pwc_to_dbt.py generate FLOWLINE_DEMO_JAFFLESHOP.xml --output models/staging
 python cmd/pwc_to_dbt.py model FLOWLINE_DEMO_JAFFLESHOP.xml m_FL_JS_STAGING_FULL STG_CUSTOMERS
+
+# executes the WORKFLOW node (currently only TASKINSTANCE linked to SESSION nodes which have MAPPING related definitions)
+# TODO: can be extended and enhanced to fully support the XML format with all nodes, commands, etc.
 python cmd/pwc_to_dbt.py workflow FLOWLINE_DEMO_JAFFLESHOP.xml wf_FL_JAFFLESHOP_DEMO
 python cmd/pwc_to_dbt.py workflow FLOWLINE_DEMO_JAFFLESHOP.xml wf_FL_JAFFLESHOP_DEMO --output models/staging
+
+# writes XML-derived SOURCE metadata to models/sources.yml
+python cmd/pwc_to_dbt.py sources FLOWLINE_DEMO_JAFFLESHOP.xml --output models/sources.yml
+
+# to validate the structure of the XML file
+python cmd/pwc_to_dbt.py validate FLOWLINE_DEMO_JAFFLESHOP.xml
 ```
 
-The `generate` command writes one SQL file per mapping target. The `model`
+The `generate` command writes one SQL file per mapping target and also writes
+`models/sources.yml` from the XML `SOURCE` definitions. The `model`
 command prints one generated model to the terminal, which is useful for
 manually inspecting lineage and expressions. The `workflow` command resolves
 session task instances and prints their mapping execution order; with

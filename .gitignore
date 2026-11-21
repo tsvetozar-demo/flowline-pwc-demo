@@ -2,3 +2,15 @@
 __pycache__/
 *.py[cod]
 *$py.class
+logs/
+target/
+dbt_packages/
+dbt_internal_packages/
+fs_internal_packages/
+dbt_modules/
+venv/
+.venv/
+env/
+**/*.duckdb
+**/*.duckdb.wal
+models/

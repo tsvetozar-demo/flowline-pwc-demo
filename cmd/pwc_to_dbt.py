@@ -16,6 +16,7 @@ from pwc_parser import (  # noqa: E402
     build_project_definition,
     generate_dbt_models,
     generate_model_sql,
+    generate_sources_yaml,
     generate_workflow_models,
     parse_file,
     build_workflow_definition,
@@ -88,6 +89,13 @@ def workflow(args: argparse.Namespace) -> int:
     return 0
 
 
+def sources(args: argparse.Namespace) -> int:
+    document = _document(args.xml)
+    path = generate_sources_yaml(document, args.output, args.source_name, args.schema)
+    print(path)
+    return 0
+
+
 def validate(args: argparse.Namespace) -> int:
     document = _document(args.xml)
     issues = validate_document(document)
@@ -136,6 +144,13 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser = subparsers.add_parser("validate", help="validate XML relationships")
     validate_parser.add_argument("xml", help="PowerCenter XML export")
     validate_parser.set_defaults(function=validate)
+
+    sources_parser = subparsers.add_parser("sources", help="write XML-derived dbt source metadata")
+    sources_parser.add_argument("xml", help="PowerCenter XML export")
+    sources_parser.add_argument("-o", "--output", default="models/sources.yml")
+    sources_parser.add_argument("--source-name", default="raw", help="dbt source name")
+    sources_parser.add_argument("--schema", default="main", help="dbt schema")
+    sources_parser.set_defaults(function=sources)
 
     return parser
 
