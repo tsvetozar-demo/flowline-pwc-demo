@@ -174,7 +174,33 @@ def generate_dbt_models(
             path = destination / f"{_sql_name(target.definition_name)}.sql"
             path.write_text(generator.render_target(target), encoding="utf-8")
             written.append(path)
+    written.append(generate_sources_yaml(document, destination.parent / "sources.yml", source_name))
     return tuple(written)
+
+
+def generate_sources_yaml(
+    document: PowerCenterDocument,
+    output_file: str | Path,
+    source_name: str = "raw",
+    schema: str = "main",
+) -> Path:
+    """Write dbt source metadata derived only from XML SOURCE definitions."""
+    lines = ["version: 2", "", "sources:", f"  - name: {source_name}", f"    schema: {schema}", "    tables:"]
+    for definition in sorted(document.sources, key=lambda item: item.name.casefold()):
+        lines.append(f"      - name: {definition.name}")
+        metadata = {
+            "powercenter_owner": definition.attributes.get("OWNERNAME", ""),
+            "powercenter_dbdname": definition.attributes.get("DBDNAME", ""),
+            "powercenter_database_type": definition.attributes.get("DATABASETYPE", ""),
+        }
+        metadata = {key: value for key, value in metadata.items() if value}
+        if metadata:
+            lines.append("        meta:")
+            lines.extend(f"          {key}: {value}" for key, value in metadata.items())
+    path = Path(output_file)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
 
 
 def generate_workflow_models(
@@ -201,4 +227,5 @@ def generate_workflow_models(
             path.write_text(generator.render_target(target), encoding="utf-8")
             written.append(path)
         generated_mappings.add(session.mapping_name)
+    written.append(generate_sources_yaml(document, destination.parent / "sources.yml", source_name))
     return tuple(written)

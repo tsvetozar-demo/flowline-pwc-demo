@@ -58,7 +58,7 @@ def test_mapping_generation_writes_dbt_model_files(tmp_path):
 
     paths = generate_dbt_models(document, tmp_path)
 
-    assert [path.name for path in paths] == ["customers.sql"]
+    assert [path.name for path in paths] == ["customers.sql", "sources.yml"]
     assert "SELECT" in paths[0].read_text(encoding="utf-8")
     assert "{{ ref('raw_customers') }}" in paths[0].read_text(encoding="utf-8")
 
@@ -79,9 +79,14 @@ def test_multiple_transformation_ctes_are_comma_separated():
     assert not sql.rstrip().endswith(";")
 
 
-def test_generation_does_not_require_intermediate_sources_file(tmp_path):
+def test_generation_includes_xml_derived_sources_file(tmp_path):
     document = parse_file("FLOWLINE_DEMO_JAFFLESHOP.xml")
 
     paths = generate_dbt_models(document, tmp_path)
 
-    assert not any(path.name == "sources.yml" for path in paths)
+    sources = tmp_path.parent / "sources.yml"
+    assert sources in paths
+    content = sources.read_text(encoding="utf-8")
+    assert "name: RAW_CUSTOMERS" in content
+    assert "name: STG_CUSTOMERS" in content
+    assert "powercenter_dbdname: XEPDB1_Oracle_32_RAW" in content
