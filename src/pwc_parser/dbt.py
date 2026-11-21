@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 from .model import Definition, Instance, Mapping, PowerCenterDocument, Workflow
 from .workflow import workflow_execution_plan
+from .validation import validate_or_raise
 
 
 def translate_expression(expression: str | None) -> str:
@@ -148,6 +149,7 @@ def generate_model_sql(
     source_name: str = "raw",
 ) -> str:
     """Generate dbt SQL for one target instance."""
+    validate_or_raise(document)
     generator = DbtModelGenerator(mapping, document, source_name)
     target = mapping.find_instance(target_instance)
     if target is None:
@@ -161,6 +163,7 @@ def generate_dbt_models(
     source_name: str = "raw",
 ) -> tuple[Path, ...]:
     """Write dbt model SQL files for every target in every mapping."""
+    validate_or_raise(document)
     destination = Path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
@@ -181,6 +184,7 @@ def generate_workflow_models(
     source_name: str = "raw",
 ) -> tuple[Path, ...]:
     """Write models for sessions in workflow execution order."""
+    validate_or_raise(document)
     destination = Path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []

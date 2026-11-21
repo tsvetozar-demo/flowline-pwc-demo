@@ -11,6 +11,7 @@ from .dbt import (
     translate_expression,
 )
 from .workflow import build_workflow_definition, workflow_execution_plan
+from .validation import DocumentValidationError, ValidationIssue, validate_document, validate_or_raise
 
 __all__ = [
     "Connection", "Definition", "Field", "Instance", "Mapping",
@@ -20,4 +21,5 @@ __all__ = [
     "generate_dbt_models", "generate_model_sql", "generate_workflow_models",
     "translate_expression",
     "build_workflow_definition", "workflow_execution_plan",
+    "DocumentValidationError", "ValidationIssue", "validate_document", "validate_or_raise",
 ]

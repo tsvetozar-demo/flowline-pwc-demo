@@ -1,3 +1,50 @@
+# How to install
+
+Build docker with:
+```bash
+cd docker
+
+# for development and debugging
+# build the docker image with python, pytest (and other pips), dbt, duckdb and related stuff used for running tests and playground with data
+docker build -t infinite-lambda-dbt .
+
+# create the container (map local directory of your project to /workspace inside the container)
+docker create \
+    -it \
+    --name mytest \
+    -v "/local/path/on/your/computer:/workspace" \
+    infinite-lambda-dbt
+
+# start container if not running
+docker start infinite-lambda-dbt
+
+# attach to run commands, tests, and experiment
+docker attach infinite-lambda-dbt
+```
+
+# Command-line tool
+
+This is the tool that can be used to run different parts of the process and check results.
+It can be used to produce the final generation of dbt models as well.
+
+The manual CLI is available at `cmd/pwc_to_dbt.py`:
+
+```bash
+source .venv/bin/activate
+python cmd/pwc_to_dbt.py inventory FLOWLINE_DEMO_JAFFLESHOP.xml
+python cmd/pwc_to_dbt.py graph FLOWLINE_DEMO_JAFFLESHOP.xml --mapping m_FL_JS_STAGING_FULL
+python cmd/pwc_to_dbt.py generate FLOWLINE_DEMO_JAFFLESHOP.xml --output models/staging
+python cmd/pwc_to_dbt.py model FLOWLINE_DEMO_JAFFLESHOP.xml m_FL_JS_STAGING_FULL STG_CUSTOMERS
+python cmd/pwc_to_dbt.py workflow FLOWLINE_DEMO_JAFFLESHOP.xml wf_FL_JAFFLESHOP_DEMO
+python cmd/pwc_to_dbt.py workflow FLOWLINE_DEMO_JAFFLESHOP.xml wf_FL_JAFFLESHOP_DEMO --output models/staging
+```
+
+The `generate` command writes one SQL file per mapping target. The `model`
+command prints one generated model to the terminal, which is useful for
+manually inspecting lineage and expressions. The `workflow` command resolves
+session task instances and prints their mapping execution order; with
+`--output`, it generates models in that workflow order.
+
 # Flowline PowerCenter Demo — Jaffle Shop
 
 A single Informatica PowerCenter repository export (`FLOWLINE_DEMO_JAFFLESHOP.xml`) that reimplements the dbt [Jaffle Shop](https://github.com/dbt-labs/jaffle-shop) demo project as a PowerCenter pipeline. Used for demo purposes only.
@@ -69,22 +116,3 @@ from the XML definition names, normalized for dbt, so `RAW_CUSTOMERS` becomes
 `{{ ref('raw_customers') }}` and `STG_CUSTOMERS` becomes
 `{{ ref('stg_customers') }}`. The converter does not inspect local seed files.
 
-## Command-line tool
-
-The manual CLI is available at `cmd/pwc_to_dbt.py`:
-
-```bash
-source .venv/bin/activate
-python cmd/pwc_to_dbt.py inventory FLOWLINE_DEMO_JAFFLESHOP.xml
-python cmd/pwc_to_dbt.py graph FLOWLINE_DEMO_JAFFLESHOP.xml --mapping m_FL_JS_STAGING_FULL
-python cmd/pwc_to_dbt.py generate FLOWLINE_DEMO_JAFFLESHOP.xml --output models/staging
-python cmd/pwc_to_dbt.py model FLOWLINE_DEMO_JAFFLESHOP.xml m_FL_JS_STAGING_FULL STG_CUSTOMERS
-python cmd/pwc_to_dbt.py workflow FLOWLINE_DEMO_JAFFLESHOP.xml wf_FL_JAFFLESHOP_DEMO
-python cmd/pwc_to_dbt.py workflow FLOWLINE_DEMO_JAFFLESHOP.xml wf_FL_JAFFLESHOP_DEMO --output models/staging
-```
-
-The `generate` command writes one SQL file per mapping target. The `model`
-command prints one generated model to the terminal, which is useful for
-manually inspecting lineage and expressions. The `workflow` command resolves
-session task instances and prints their mapping execution order; with
-`--output`, it generates models in that workflow order.

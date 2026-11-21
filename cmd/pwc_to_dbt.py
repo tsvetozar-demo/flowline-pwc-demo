@@ -19,6 +19,7 @@ from pwc_parser import (  # noqa: E402
     generate_workflow_models,
     parse_file,
     build_workflow_definition,
+    validate_document,
 )
 
 
@@ -87,6 +88,18 @@ def workflow(args: argparse.Namespace) -> int:
     return 0
 
 
+def validate(args: argparse.Namespace) -> int:
+    document = _document(args.xml)
+    issues = validate_document(document)
+    if issues:
+        for issue in issues:
+            print(issue)
+        print(f"Found {len(issues)} issue(s)")
+        return 1
+    print("XML structure is valid")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pwc_to_dbt", description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -119,6 +132,10 @@ def build_parser() -> argparse.ArgumentParser:
     workflow_parser.add_argument("-o", "--output", default="models/staging", help="generate models in this directory")
     workflow_parser.add_argument("--source-name", default="raw", help="dbt source name")
     workflow_parser.set_defaults(function=workflow)
+
+    validate_parser = subparsers.add_parser("validate", help="validate XML relationships")
+    validate_parser.add_argument("xml", help="PowerCenter XML export")
+    validate_parser.set_defaults(function=validate)
 
     return parser
 
